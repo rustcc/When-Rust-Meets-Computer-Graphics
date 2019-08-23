@@ -420,6 +420,73 @@
                                 <section class="normal markdown-section">
                                 
                                 <h1 id="119-&#x5904;&#x7406;&#x8F93;&#x5165;&#x4E8B;&#x4EF6;">1.1.9 &#x5904;&#x7406;&#x8F93;&#x5165;&#x4E8B;&#x4EF6;</h1>
+<p>&#x8FD9;&#x4E00;&#x7AE0;,&#x6211;&#x4EEC;&#x8BB2;&#x4E00;&#x4E0B;&#x5982;&#x4F55;&#x5904;&#x7406;&#x8F93;&#x5165;&#x4E8B;&#x4EF6;.</p>
+<p>&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x628A;&#x4E00;&#x4E2A;&#x65B9;&#x5F62;&#x5F53;&#x6210;&#x5C4F;&#x5E55;,&#x9F20;&#x6807;&#x5C31;&#x662F;&#x65B9;&#x5F62;&#x4E0A;&#x7684;&#x4E00;&#x4E2A;&#x70B9;&#x7684;&#x4F4D;&#x7F6E;.
+&#x90A3;&#x4E48;&#x6211;&#x4EEC;&#x5C31;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;x&#x8F74;&#x548C;y&#x8F74;&#x7684;&#x8DDD;&#x79BB;&#x5224;&#x65AD;&#x9F20;&#x6807;&#x7684;&#x4F4D;&#x7F6E;.</p>
+<p>&#x6240;&#x4EE5;&#x6211;&#x4EEC;&#x5F00;&#x5199;,&#x5728;<code>event_handler</code>&#x76EE;&#x5F55;&#x4E0B;&#x521B;&#x5EFA;&#x7136;&#x540E;&#x6DFB;&#x52A0;<code>local_state.rs</code></p>
+<pre><code class="lang-rust"><span class="hljs-meta">#[derive(Debug, Clone, Copy, Default)]</span>
+<span class="hljs-keyword">pub</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">LocalState</span></span> {
+    <span class="hljs-keyword">pub</span> frame_width: <span class="hljs-keyword">f64</span>, <span class="hljs-comment">// &#x7A97;&#x53E3;&#x5BBD;</span>
+    <span class="hljs-keyword">pub</span> frame_height: <span class="hljs-keyword">f64</span>, <span class="hljs-comment">// &#x7A97;&#x53E3;&#x9AD8;</span>
+    <span class="hljs-keyword">pub</span> mouse_x: <span class="hljs-keyword">f64</span>, <span class="hljs-comment">// &#x9F20;&#x6807;&#x7684;x&#x8F74;&#x8DDD;&#x79BB;</span>
+    <span class="hljs-keyword">pub</span> mouse_y: <span class="hljs-keyword">f64</span>, <span class="hljs-comment">// &#x9F20;&#x6807;&#x7684;y&#x8F74;&#x8DDD;&#x79BB;</span>
+}
+</code></pre>
+<p>&#x7136;&#x540E;&#x6839;&#x636E;&#x8FD9;&#x4E2A;,&#x6211;&#x4EEC;&#x5199;&#x4E00;&#x4E2A;&#x66F4;&#x65B0;<code>State</code>&#x7684;&#x51FD;&#x6570;</p>
+<pre><code class="lang-rust"><span class="hljs-keyword">impl</span> LocalState {
+    <span class="hljs-keyword">pub</span> <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-title">update_from_input</span></span>(&amp;<span class="hljs-keyword">mut</span> <span class="hljs-keyword">self</span>, input: UserInput<span class="hljs-comment">/*&#x8FD9;&#x4E2A;&#x4E00;&#x4F1A;&#x513F;&#x518D;&#x8BB2;*/</span>) {
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">let</span> <span class="hljs-literal">Some</span>(frame_size) = input.new_frame_size {
+            <span class="hljs-comment">//if let &#x5176;&#x5B9E;&#x5C31;&#x662F;&#x4E2A;match&#x7684;&#x8BED;&#x6CD5;&#x7CD6;</span>
+            <span class="hljs-keyword">self</span>.frame_width = frame_size.<span class="hljs-number">0</span>;
+            <span class="hljs-keyword">self</span>.frame_height = frame_size.<span class="hljs-number">1</span>;
+        }
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">let</span> <span class="hljs-literal">Some</span>(position) = input.new_mouse_position {
+            <span class="hljs-keyword">self</span>.mouse_x = position.<span class="hljs-number">0</span>;
+            <span class="hljs-keyword">self</span>.mouse_y = position.<span class="hljs-number">1</span>;
+        }
+    }
+}
+</code></pre>
+<p>&#x597D;&#x7684;,&#x6211;&#x4EEC;&#x5DF2;&#x7ECF;&#x5199;&#x597D;&#x4E86;&#x8FD9;&#x4E2A;<code>State</code>&#x90A3;&#x4E48;&#x5982;&#x4F55;&#x83B7;&#x53D6;&#x5230;&#x5C4F;&#x5E55;&#x7684;&#x8F93;&#x5165;&#x5462;?</p>
+<p>&#x6211;&#x4EEC;&#x9700;&#x8981;&#x53BB;&#x91CC;&#x7528;<code>winit</code>&#x7684;<code>event_loop</code>&#x53BB;&#x83B7;&#x53D6;
+&#x6240;&#x4EE5;&#x6211;&#x4EEC;&#x5728;<code>event_handler</code>&#x4E0B;&#x65B0;&#x5EFA;&#x4E00;&#x4E2A;<code>user_input.rs</code></p>
+<pre><code class="lang-rust"><span class="hljs-keyword">pub</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">UserInput</span></span> {
+    <span class="hljs-keyword">pub</span> end_requested: <span class="hljs-keyword">bool</span>, <span class="hljs-comment">// &#x7A97;&#x53E3;&#x88AB;&#x5173;&#x4E86;</span>
+    <span class="hljs-keyword">pub</span> new_frame_size: <span class="hljs-built_in">Option</span>&lt;(<span class="hljs-keyword">f64</span>, <span class="hljs-keyword">f64</span>)&gt;, <span class="hljs-comment">// &#x66F4;&#x65B0;&#x7684;&#x5C4F;&#x5E55;&#x5BBD;&#x5EA6;</span>
+    <span class="hljs-keyword">pub</span> new_mouse_position: <span class="hljs-built_in">Option</span>&lt;(<span class="hljs-keyword">f64</span>, <span class="hljs-keyword">f64</span>)&gt;, <span class="hljs-comment">// &#x66F4;&#x65B0;&#x7684;&#x9F20;&#x6807;&#x4F4D;&#x7F6E;</span>
+}
+</code></pre>
+<p>&#x7136;&#x540E;&#x7528;<code>event_loop</code>&#x53BB;&#x83B7;&#x53D6;&#x8FD9;&#x4E9B;&#x53C2;&#x6570;</p>
+<pre><code class="lang-rust"><span class="hljs-keyword">impl</span> UserInput {
+    <span class="hljs-keyword">pub</span> <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-title">poll_events_loop</span></span>(events_loop: &amp;<span class="hljs-keyword">mut</span> EventsLoop) -&gt; <span class="hljs-keyword">Self</span> {
+        <span class="hljs-keyword">let</span> <span class="hljs-keyword">mut</span> output = UserInput::default();
+        events_loop.poll_events(|event| <span class="hljs-keyword">match</span> event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested, 
+                <span class="hljs-comment">// &#x5982;&#x679C;pull&#x4E0B;&#x6765;&#x7A97;&#x53E3;&#x5173;&#x95ED;&#x884C;&#x4E3A;</span>
+                ..
+            } =&gt; output.end_requested = <span class="hljs-literal">true</span>,
+            Event::WindowEvent {
+                event: WindowEvent::Resized(logical), 
+                <span class="hljs-comment">// &#x5982;&#x679C;&#x53D1;&#x73B0;&#x7A97;&#x53E3;&#x5927;&#x5C0F;&#x6539;&#x53D8;&#x4E86;</span>
+                ..
+            } =&gt; {
+                output.new_frame_size = <span class="hljs-literal">Some</span>((logical.width, logical.height));
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, .. }, 
+                <span class="hljs-comment">// &#x53D1;&#x73B0;&#x9F20;&#x6807;&#x7684;&#x4F4D;&#x7F6E;&#x79FB;&#x52A8;&#x4E86;</span>
+                ..
+            } =&gt; {
+                output.new_mouse_position = <span class="hljs-literal">Some</span>((position.x, position.y));
+            }
+            _ =&gt; (),
+        });
+        output
+    }
+}
+</code></pre>
+<p>&#x597D;&#x7684;,&#x8FD9;&#x6837;&#x6211;&#x4EEC;&#x5C31;&#x6210;&#x529F;&#x7684;&#x83B7;&#x53D6;&#x5230;&#x4E86;&#x9F20;&#x6807;&#x7684;&#x4F4D;&#x7F6E;,&#x7A97;&#x53E3;&#x7684;&#x5927;&#x5C0F;</p>
 
                                 
                                 </section>
@@ -463,7 +530,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"1.1.9 处理输入事件","level":"1.3.2.9","depth":3,"next":{"title":"1.1.10 高端清屏","level":"1.3.2.10","depth":3,"path":"画个三角形吧/1.11写一个clearcolor.md","ref":"画个三角形吧/1.11写一个clearcolor.md","articles":[]},"previous":{"title":"1.1.8 实现DROP","level":"1.3.2.8","depth":3,"path":"画个三角形吧/1.9写一个drop.md","ref":"画个三角形吧/1.9写一个drop.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"画个三角形吧/1.10处理输入事件.md","mtime":"2019-08-18T19:56:31.153Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2019-08-18T19:57:49.246Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"1.1.9 处理输入事件","level":"1.3.2.9","depth":3,"next":{"title":"1.1.10 高端清屏","level":"1.3.2.10","depth":3,"path":"画个三角形吧/1.11写一个clearcolor.md","ref":"画个三角形吧/1.11写一个clearcolor.md","articles":[]},"previous":{"title":"1.1.8 实现DROP","level":"1.3.2.8","depth":3,"path":"画个三角形吧/1.9写一个drop.md","ref":"画个三角形吧/1.9写一个drop.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"画个三角形吧/1.10处理输入事件.md","mtime":"2019-08-23T09:23:50.646Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2019-08-23T09:32:28.738Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>

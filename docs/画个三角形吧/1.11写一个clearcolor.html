@@ -420,6 +420,131 @@
                                 <section class="normal markdown-section">
                                 
                                 <h1 id="1110-&#x9AD8;&#x7AEF;&#x6E05;&#x5C4F;">1.1.10 &#x9AD8;&#x7AEF;&#x6E05;&#x5C4F;</h1>
+<p>&#x6211;&#x4EEC;&#x65E2;&#x7136;&#x5DF2;&#x7ECF;&#x83B7;&#x5F97;&#x4E86;&#x9F20;&#x6807;&#x7684;&#x4F4D;&#x7F6E;,
+&#x90A3;&#x4E48;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x5C1D;&#x8BD5;&#x5229;&#x7528;&#x9F20;&#x6807;&#x7684;&#x4F4D;&#x7F6E;&#x53BB;&#x7ED9;&#x5C4F;&#x5E55;&#x6362;&#x4E0A;&#x4E0D;&#x540C;&#x7684;&#x989C;&#x8272;</p>
+<pre><code class="lang-rust"><span class="hljs-comment">// &#x6839;&#x636E;&#x9F20;&#x6807;&#x7684;&#x4F4D;&#x7F6E;&#x5C06;&#x5C4F;&#x5E55;&#x67D3;&#x6210;&#x6307;&#x5B9A;&#x7684;&#x989C;&#x8272;</span>
+<span class="hljs-keyword">pub</span> <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-title">clear_color_by_mouse</span></span>(
+    s: &amp;<span class="hljs-keyword">mut</span> HardwareState,
+    color: [<span class="hljs-keyword">f32</span>; <span class="hljs-number">4</span>],
+) -&gt; <span class="hljs-built_in">Result</span>&lt;<span class="hljs-built_in">Option</span>&lt;gfx_hal::window::Suboptimal&gt;, &amp;<span class="hljs-symbol">&apos;static</span> <span class="hljs-keyword">str</span>&gt; {
+    <span class="hljs-comment">// &#x8BBE;&#x7F6E;&#x4FE1;&#x53F7;&#x91CF;</span>
+    <span class="hljs-keyword">let</span> image_available = &amp;s.image_available_semaphores[s.current_frame];
+    <span class="hljs-keyword">let</span> render_finished = &amp;s.render_finished_semaphores[s.current_frame];
+    <span class="hljs-comment">// &#x83B7;&#x53D6;&#x5F53;&#x524D;&#x5E27;&#x6570;</span>
+    s.current_frame = (s.current_frame + <span class="hljs-number">1</span>) % s.frames_in_flight;
+
+    <span class="hljs-keyword">let</span> (i_u32, i_usize) = <span class="hljs-keyword">unsafe</span> {
+        <span class="hljs-keyword">let</span> (image_index, _) = s
+            .swapchain
+            <span class="hljs-comment">//&#x8BF7;&#x6C42;&#x4ECE;swapchain&#x91CC;&#x53D6;&#x51FA;&#x4E00;&#x4E2A;&#x56FE;&#x7247;</span>
+            .acquire_image(
+                core::u64::MAX,
+                <span class="hljs-literal">Some</span>(image_available),
+                <span class="hljs-literal">Some</span>(&amp;s.in_flight_fences[s.current_frame]),
+            )
+            .map_err(|_| <span class="hljs-string">&quot;&#x9519;&#x8BEF;,&#x4E0D;&#x80FD;&#x4ECE;&#x4EA4;&#x6362;&#x94FE;&#x4E2D;&#x53D6;&#x51FA;&#x56FE;&#x7247;!&quot;</span>)?;
+        (image_index, image_index <span class="hljs-keyword">as</span> usize)
+    };
+
+    <span class="hljs-keyword">let</span> flight_fence = &amp;s.in_flight_fences[i_usize];
+    <span class="hljs-keyword">unsafe</span> {
+        s.device
+            .wait_for_fence(flight_fence, core::u64::MAX)
+            .map_err(|_| <span class="hljs-string">&quot;&#x9519;&#x8BEF;,&#x7B49;&#x5F85;&#x5185;&#x5B58;&#x5C4F;&#x969C;&#x5931;&#x8D25;!&quot;</span>)?;
+        s.device
+            .reset_fence(flight_fence)
+            .map_err(|_| <span class="hljs-string">&quot;&#x9519;&#x8BEF;,&#x91CD;&#x7F6E;&#x5185;&#x5B58;&#x5C4F;&#x969C;&#x5931;&#x8D25;!&quot;</span>)?;
+    }
+
+    <span class="hljs-keyword">unsafe</span> {
+        <span class="hljs-comment">// &#x83B7;&#x53D6;&#x4E00;&#x4E2A;command buffer</span>
+        <span class="hljs-keyword">let</span> buffer = &amp;<span class="hljs-keyword">mut</span> s.command_buffers[i_usize];
+        <span class="hljs-comment">// &#x62FF;&#x5230;Clear color &#x7684;&#x503C;</span>
+        <span class="hljs-keyword">let</span> clear_values = [ClearValue::Color(ClearColor::from(color))];
+        buffer.begin(<span class="hljs-literal">false</span>);
+        buffer.begin_render_pass_inline(
+            &amp;s.render_pass,
+            &amp;s.framebuffers[i_usize],
+            s.render_area,
+            clear_values.iter(),
+        );
+        buffer.finish();
+    }
+
+    <span class="hljs-comment">// &#x62FF;&#x5230;command buffer</span>
+    <span class="hljs-keyword">let</span> command_buffers = &amp;s.command_buffers[i_usize..=i_usize];
+    <span class="hljs-comment">// &#x7B49;&#x4FE1;&#x53F7;&#x91CF;&#x5404;&#x5C31;&#x5404;&#x4F4D;</span>
+    <span class="hljs-keyword">let</span> wait_semaphores: ArrayVec&lt;[_; <span class="hljs-number">1</span>]&gt; =
+        [(image_available, PipelineStage::COLOR_ATTACHMENT_OUTPUT)].into();
+    <span class="hljs-keyword">let</span> signal_semaphores: ArrayVec&lt;[_; <span class="hljs-number">1</span>]&gt; = [render_finished].into();
+    <span class="hljs-keyword">let</span> present_wait_semaphores: ArrayVec&lt;[_; <span class="hljs-number">1</span>]&gt; = [render_finished].into();
+    <span class="hljs-comment">// &#x5F00;&#x63A8;</span>
+    <span class="hljs-keyword">let</span> submission = Submission {
+        command_buffers,
+        wait_semaphores,
+        signal_semaphores,
+    };
+
+    <span class="hljs-comment">// &#x6254;&#x5230;&#x63A7;&#x5236;&#x961F;&#x5217;</span>
+    <span class="hljs-keyword">let</span> the_command_queue = &amp;<span class="hljs-keyword">mut</span> s.queue_group.queues[<span class="hljs-number">0</span>];
+    <span class="hljs-comment">// tada! &#x5B8C;&#x6210;&#x4E86; </span>
+    <span class="hljs-keyword">unsafe</span> {
+        the_command_queue.submit(submission, <span class="hljs-literal">Some</span>(flight_fence));
+        s.swapchain
+            .present(the_command_queue, i_u32, present_wait_semaphores)
+            .map_err(|_| <span class="hljs-string">&quot;&#x9519;&#x8BEF;,&#x6DFB;&#x52A0;&#x5230;&#x533A;&#x5757;&#x94FE;&#x5931;&#x8D25;!&quot;</span>)
+    }
+}
+</code></pre>
+<p>&#x7136;&#x540E;&#x6211;&#x4EEC;&#x5728;<code>app.rs</code>&#x4E2D;&#x53BB;&#x5199;&#x4E00;&#x4E2A;&#x6839;&#x636E;&#x9F20;&#x6807;&#x4F4D;&#x7F6E;&#x53D8;&#x6362;rgb&#x7684;&#x51FD;&#x6570;</p>
+<pre><code class="lang-rust"><span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-title">change_rgb_by_state</span></span>(hal_state: &amp;<span class="hljs-keyword">mut</span> HardwareState, local_state: &amp;LocalState) {
+    <span class="hljs-keyword">let</span> b = (local_state.mouse_x / local_state.frame_width) <span class="hljs-keyword">as</span> <span class="hljs-keyword">f32</span>;
+    <span class="hljs-keyword">let</span> g = (local_state.mouse_y / local_state.frame_height) <span class="hljs-keyword">as</span> <span class="hljs-keyword">f32</span>;
+    <span class="hljs-keyword">let</span> r = (b + g) * <span class="hljs-number">0.3</span>;
+    <span class="hljs-keyword">let</span> a = <span class="hljs-number">1.0</span>;
+    <span class="hljs-keyword">let</span> _ = clear_color_by_mouse(hal_state, [r, g, b, a]);
+}
+</code></pre>
+<p>&#x6700;&#x540E;&#x6211;&#x4EEC;&#x518D;&#x91CD;&#x5199;&#x4E0B;<code>App</code></p>
+<pre><code class="lang-rust"><span class="hljs-keyword">impl</span> App {
+    <span class="hljs-keyword">pub</span> <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-title">new</span></span>() {
+        <span class="hljs-keyword">let</span> <span class="hljs-keyword">mut</span> ws = WindowState::new(title, (<span class="hljs-number">1024f64</span>, <span class="hljs-number">768f64</span>));
+        <span class="hljs-keyword">let</span> <span class="hljs-keyword">mut</span> hs = <span class="hljs-keyword">match</span> HardwareState::new(&amp;ws.window, title) {
+            <span class="hljs-literal">Ok</span>(x) =&gt; x,
+            <span class="hljs-literal">Err</span>(x) =&gt; <span class="hljs-built_in">panic!</span>(),
+        };
+        <span class="hljs-keyword">let</span> (frame_width, frame_height) = ws
+            .window
+            .get_inner_size()
+            .map(|logical| logical.into())
+            .unwrap_or((<span class="hljs-number">1.0</span>, <span class="hljs-number">1.0</span>));
+        <span class="hljs-keyword">let</span> <span class="hljs-keyword">mut</span> ls = LocalState {
+            frame_width,
+            frame_height,
+            mouse_x: <span class="hljs-number">0.0</span>,
+            mouse_y: <span class="hljs-number">0.0</span>,
+        };
+        <span class="hljs-keyword">let</span> <span class="hljs-keyword">mut</span> running = <span class="hljs-literal">true</span>;
+        <span class="hljs-keyword">while</span> running {
+            <span class="hljs-keyword">let</span> inputs = UserInput::poll_events_loop(&amp;<span class="hljs-keyword">mut</span> ws.evloop);
+            <span class="hljs-keyword">if</span> inputs.end_requested {
+                running = <span class="hljs-literal">false</span>;
+            }
+            <span class="hljs-keyword">if</span> inputs.new_frame_size.is_some() {
+                <span class="hljs-built_in">drop</span>(hs);
+                hs = <span class="hljs-keyword">match</span> HardwareState::new(&amp;ws.window, title) {
+                    <span class="hljs-literal">Ok</span>(state) =&gt; state,
+                    <span class="hljs-literal">Err</span>(e) =&gt; <span class="hljs-built_in">panic!</span>(e),
+                };
+            }
+            ls.update_from_input(inputs);
+            change_rgb_by_state(&amp;<span class="hljs-keyword">mut</span> hs, &amp;ls);
+        }
+    }
+}
+</code></pre>
+<p>&#x73B0;&#x5728;&#x6211;&#x4EEC;&#x53BB;&#x8FD0;&#x884C;&#x4E00;&#x4E0B;,&#x4F1A;&#x53D1;&#x73B0;&#x5C4F;&#x5E55;&#x7684;&#x989C;&#x8272;&#x8DDF;&#x968F;&#x9F20;&#x6807;&#x7684;&#x4F4D;&#x7F6E;&#x800C;&#x6539;&#x53D8;
+<img src="1.11.1.png" alt="&#x6765;&#x81EA;windows"></p>
 
                                 
                                 </section>
@@ -463,7 +588,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"1.1.10 高端清屏","level":"1.3.2.10","depth":3,"next":{"title":"1.1.11 渲染过程","level":"1.3.2.11","depth":3,"path":"画个三角形吧/1.12渲染过程.md","ref":"画个三角形吧/1.12渲染过程.md","articles":[]},"previous":{"title":"1.1.9 处理输入事件","level":"1.3.2.9","depth":3,"path":"画个三角形吧/1.10处理输入事件.md","ref":"画个三角形吧/1.10处理输入事件.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"画个三角形吧/1.11写一个clearcolor.md","mtime":"2019-08-18T19:56:31.162Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2019-08-18T19:57:49.246Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"1.1.10 高端清屏","level":"1.3.2.10","depth":3,"next":{"title":"1.1.11 渲染过程","level":"1.3.2.11","depth":3,"path":"画个三角形吧/1.12渲染过程.md","ref":"画个三角形吧/1.12渲染过程.md","articles":[]},"previous":{"title":"1.1.9 处理输入事件","level":"1.3.2.9","depth":3,"path":"画个三角形吧/1.10处理输入事件.md","ref":"画个三角形吧/1.10处理输入事件.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"画个三角形吧/1.11写一个clearcolor.md","mtime":"2019-08-23T09:32:22.548Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2019-08-23T09:32:28.738Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>
